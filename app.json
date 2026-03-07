@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "打卡日记",
+    "slug": "habit-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6366F1"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourname.habittracker"
+    },
+    "android": {
+      "package": "com.yourname.habittracker",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6366F1"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "需要访问相册来选择打卡照片",
+          "cameraPermission": "需要相机权限来拍摄打卡照片"
+        }
+      ],
+      [
+        "expo-sqlite"
+      ]
+    ]
+  }
+}
