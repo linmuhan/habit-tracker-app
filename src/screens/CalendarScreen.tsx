@@ -8,6 +8,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
+import { NavigationProp } from '@react-navigation/native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
@@ -16,8 +17,12 @@ import { colors } from '../theme';
 
 const { width } = Dimensions.get('window');
 
+type RootStackParamList = {
+  ImageViewer: { uri: string; index: number; photos: string[] };
+};
+
 export default function CalendarScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [checkins, setCheckins] = useState<any[]>([]);
   const [markedDates, setMarkedDates] = useState<Record<string, any>>({});
@@ -225,13 +230,24 @@ export default function CalendarScreen() {
                       showsHorizontalScrollIndicator={false}
                       style={styles.photosScroll}
                     >
-                      {JSON.parse(checkin.photos).map((photo: string, idx: number) => (
-                        <Image
-                          key={idx}
-                          source={{ uri: photo }}
-                          style={styles.photo}
-                        />
-                      ))}
+                      {(() => {
+                        const photos = JSON.parse(checkin.photos);
+                        return photos.map((photo: string, idx: number) => (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => navigation.navigate('ImageViewer', { 
+                              uri: photo, 
+                              index: idx, 
+                              photos: photos 
+                            })}
+                          >
+                            <Image
+                              source={{ uri: photo }}
+                              style={styles.photo}
+                            />
+                          </TouchableOpacity>
+                        ));
+                      })()}
                     </ScrollView>
                   )}
                 </View>

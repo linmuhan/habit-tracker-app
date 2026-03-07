@@ -1,0 +1,83 @@
+name: Build Android APK (No Expo Account Required)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Prebuild Android project
+      run: npx expo prebuild --platform android --no-install
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x android/gradlew
+
+    - name: Build Release APK
+      run: |
+        cd android
+        ./gradlew assembleRelease
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-release
+        path: android/app/build/outputs/apk/release/app-release.apk
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: github.event_name == 'workflow_dispatch'
+      with:
+        files: android/app/build/outputs/apk/release/app-release.apk
+        tag_name: v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
+        body: |
+          ## 打卡日记 APP
+          
+          ✅ 自动构建的APK文件
+          
+          ### 功能特性
+          - 创建习惯打卡计划
+          - 支持上传打卡照片
+          - 日历视图带图片缩略图
+          - 数据统计和连续天数
+          
+          ### 安装方法
+          下载 `app-release.apk` 文件到手机，点击安装即可。
+          （需要允许安装未知来源应用）
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build Summary
+      run: |
+        echo "## ✅ Build Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📱 APK file: android/app/build/outputs/apk/release/app-release.apk" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "💡 To download:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Go to Actions tab" >> $GITHUB_STEP_SUMMARY
+        echo "2. Click on this workflow run" >> $GITHUB_STEP_SUMMARY
+        echo "3. Download 'app-release' artifact" >> $GITHUB_STEP_SUMMARY

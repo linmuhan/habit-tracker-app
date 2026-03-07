@@ -133,3 +133,8 @@ export const isCheckedInToday = (habitId: number) => {
 export const deleteCheckin = (id: number) => {
   db.runSync('DELETE FROM checkins WHERE id = ?', [id]);
 };
+
+export const clearAllData = () => {
+  db.runSync('DELETE FROM checkins');
+  db.runSync('DELETE FROM habits');
+};

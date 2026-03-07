@@ -1,0 +1,304 @@
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Share,
+} from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { getHabits, getAllCheckins, clearAllData } from '../database';
+import { colors } from '../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+
+export default function ProfileScreen() {
+  const navigation = useNavigation();
+  const [habits, setHabits] = useState<any[]>([]);
+  const [checkins, setCheckins] = useState<any[]>([]);
+
+  const loadData = () => {
+    setHabits(getHabits());
+    setCheckins(getAllCheckins());
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const totalCheckins = checkins.length;
+  const totalHabits = habits.length;
+  
+  // 计算连续打卡天数
+  const now = new Date();
+  const uniqueDates = [...new Set(checkins.map(c => c.checkinDate))].sort((a, b) => b - a);
+  let currentStreak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  for (let i = 0; i < uniqueDates.length; i++) {
+    const checkinDate = new Date(uniqueDates[i]);
+    checkinDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((today.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === i || (i === 0 && diffDays === 1)) {
+      currentStreak++;
+    } else {
+      break;
+    }
+  }
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `我在打卡日记已坚持打卡${currentStreak}天，共完成${totalCheckins}次打卡！一起养成好习惯吧！`,
+        title: '打卡日记',
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleClearData = () => {
+    Alert.alert(
+      '确认清除',
+      '这将清除所有习惯和数据，此操作不可恢复，确定吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          style: 'destructive',
+          onPress: () => {
+            clearAllData();
+            loadData();
+            Alert.alert('已清除', '所有数据已清除');
+          },
+        },
+      ]
+    );
+  };
+
+  const menuItems = [
+    { icon: '📋', title: '管理习惯', subtitle: `${totalHabits} 个习惯`, onPress: () => {} },
+    { icon: '📤', title: '分享成就', subtitle: '邀请好友一起打卡', onPress: handleShare },
+    { icon: 'ℹ️', title: '关于应用', subtitle: '版本 1.0.0', onPress: () => {} },
+    { icon: '🗑️', title: '清除数据', subtitle: '删除所有习惯和数据', onPress: handleClearData, danger: true },
+  ];
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>我的</Text>
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Profile Card */}
+        <View style={styles.profileCard}>
+          <LinearGradient
+            colors={[colors.primary, colors.primaryDark]}
+            style={styles.profileGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatar}>👤</Text>
+            </View>
+            <Text style={styles.username}>打卡达人</Text>
+            <Text style={styles.subtitle}>坚持就是胜利</Text>
+            
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{totalCheckins}</Text>
+                <Text style={styles.statLabel}>总打卡</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{totalHabits}</Text>
+                <Text style={styles.statLabel}>习惯数</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{currentStreak}</Text>
+                <Text style={styles.statLabel}>连续天数</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Menu Items */}
+        <View style={styles.menuSection}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.menuItem,
+                index === menuItems.length - 1 && styles.menuItemLast,
+              ]}
+              onPress={item.onPress}
+            >
+              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <View style={styles.menuContent}>
+                <Text style={[styles.menuTitle, item.danger && styles.menuTitleDanger]}>
+                  {item.title}
+                </Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>打卡日记 v1.0.0</Text>
+          <Text style={styles.footerSubtext}>养成好习惯，从今天开始</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  profileCard: {
+    marginHorizontal: 16,
+    borderRadius: 24,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  profileGradient: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatar: {
+    fontSize: 40,
+  },
+  username: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 24,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: 'white',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  menuSection: {
+    marginTop: 24,
+    marginHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  menuContent: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  menuTitleDanger: {
+    color: colors.error,
+  },
+  menuSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  menuArrow: {
+    fontSize: 20,
+    color: colors.textMuted,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  footerText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  footerSubtext: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+});

@@ -8,11 +8,12 @@ import { initDatabase } from './src/database';
 import { colors } from './src/theme';
 import TodayScreen from './src/screens/TodayScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
-import HabitsScreen from './src/screens/HabitsScreen';
 import StatsScreen from './src/screens/StatsScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 import AddHabitScreen from './src/screens/AddHabitScreen';
 import CheckinScreen from './src/screens/CheckinScreen';
 import DayDetailScreen from './src/screens/DayDetailScreen';
+import ImageViewerScreen from './src/screens/ImageViewerScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -41,7 +42,7 @@ function MainTabs() {
         component={TodayScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabBarIcon focused={focused} icon="✓" label="今天" />
+            <TabBarIcon focused={focused} icon="🏠" label="首页" />
           ),
         }}
       />
@@ -55,20 +56,20 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Habits"
-        component={HabitsScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon focused={focused} icon="📝" label="习惯" />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="Stats"
         component={StatsScreen}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon focused={focused} icon="📊" label="统计" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon focused={focused} icon="👤" label="我的" />
           ),
         }}
       />
@@ -106,6 +107,7 @@ export default function App() {
         <Stack.Screen name="AddHabit" component={AddHabitScreen} />
         <Stack.Screen name="Checkin" component={CheckinScreen} />
         <Stack.Screen name="DayDetail" component={DayDetailScreen} />
+        <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -124,29 +126,32 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     backgroundColor: colors.surface,
-    borderTopWidth: 0,
-    elevation: 0,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    elevation: 8,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    height: 80,
-    paddingBottom: 20,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    height: 85,
+    paddingBottom: 25,
+    paddingTop: 8,
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 12,
+    minWidth: 56,
   },
   tabItemActive: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: colors.primary + '18',
   },
   tabIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-    opacity: 0.6,
+    fontSize: 22,
+    marginBottom: 3,
+    opacity: 0.5,
   },
   tabIconActive: {
     opacity: 1,
@@ -158,6 +163,6 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

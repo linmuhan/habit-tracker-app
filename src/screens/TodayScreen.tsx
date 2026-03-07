@@ -11,7 +11,7 @@ import {
 import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getHabits, getStreak, isCheckedInToday, getAllCheckins } from '../database';
-import { colors, gradients } from '../theme';
+import { colors } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type RootStackParamList = {
@@ -56,8 +56,9 @@ export default function TodayScreen() {
     setRefreshing(false);
   };
 
-  const getGradient = (index: number): [string, string] => {
-    return gradients[index % gradients.length];
+  const getGradientFromColor = (color: string): [string, string] => {
+    // Create a slightly lighter second color for the gradient
+    return [color, color + 'DD'];
   };
 
   const today = new Date();
@@ -99,9 +100,9 @@ export default function TodayScreen() {
         ) : (
           <>
             <View style={styles.habitsGrid}>
-              {habits.map((habit, index) => {
+              {habits.map((habit) => {
                 const isChecked = checkedIn[habit.id];
-                const gradient = getGradient(index);
+                const gradient = getGradientFromColor(habit.color || colors.primary);
 
                 return (
                   <TouchableOpacity
