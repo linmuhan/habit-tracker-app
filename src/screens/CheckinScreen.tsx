@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,11 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { checkin } from '../database';
 import { colors } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import CustomDialog from '../components/CustomDialog';
 
 export default function CheckinScreen() {
   const navigation = useNavigation();
@@ -25,12 +27,65 @@ export default function CheckinScreen() {
 
   const [note, setNote] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [location, setLocation] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
+
+  const requestLocationPermission = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      getCurrentLocation();
+    }
+  };
+
+  const getCurrentLocation = async () => {
+    setIsGettingLocation(true);
+    try {
+      const { coords } = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      
+      // Try to get address from coordinates
+      try {
+        const [address] = await Location.reverseGeocodeAsync({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        });
+        
+        if (address) {
+          const locationStr = [
+            address.city,
+            address.district,
+            address.street,
+          ].filter(Boolean).join(' ') || `${coords.latitude.toFixed(2)}, ${coords.longitude.toFixed(2)}`;
+          setLocation(locationStr);
+        } else {
+          setLocation(`${coords.latitude.toFixed(2)}, ${coords.longitude.toFixed(2)}`);
+        }
+      } catch (error) {
+        setLocation(`${coords.latitude.toFixed(2)}, ${coords.longitude.toFixed(2)}`);
+      }
+    } catch (error) {
+      console.log('获取位置失败', error);
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('权限需要', '需要访问相册权限来选择图片');
+      showDialog('权限需要', '需要访问相册权限来选择图片');
       return;
     }
 
@@ -51,7 +106,7 @@ export default function CheckinScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('权限需要', '需要相机权限来拍照');
+      showDialog('权限需要', '需要相机权限来拍照');
       return;
     }
 
@@ -70,6 +125,15 @@ export default function CheckinScreen() {
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
+  const showDialog = (title: string, message: string, onConfirm?: () => void) => {
+    setDialogConfig({
+      title,
+      message,
+      onConfirm: onConfirm || (() => setDialogVisible(false)),
+    });
+    setDialogVisible(true);
+  };
+
   const handleCheckin = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -79,13 +143,15 @@ export default function CheckinScreen() {
         habitId: habit.id,
         note: note.trim() || undefined,
         photos: photos.length > 0 ? photos : undefined,
+        location: location || undefined,
       });
 
-      Alert.alert('打卡成功！', '继续保持好习惯 💪', [
-        { text: '好的', onPress: () => navigation.goBack() },
-      ]);
+      showDialog('打卡成功！', '继续保持好习惯 💪', () => {
+        setDialogVisible(false);
+        navigation.goBack();
+      });
     } catch (error) {
-      Alert.alert('打卡失败', '请重试');
+      showDialog('打卡失败', '请重试');
     } finally {
       setIsSubmitting(false);
     }
@@ -93,6 +159,15 @@ export default function CheckinScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        showCancel={false}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -125,6 +200,24 @@ export default function CheckinScreen() {
                 })}
               </Text>
             </LinearGradient>
+          </View>
+
+          {/* Location */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📍 打卡位置</Text>
+            <View style={styles.locationContainer}>
+              <View style={styles.locationIcon}>
+                <Text style={styles.locationIconText}>📍</Text>
+              </View>
+              <View style={styles.locationContent}>
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {isGettingLocation ? '正在获取位置...' : (location || '未能获取位置')}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.refreshButton} onPress={getCurrentLocation}>
+                <Text style={styles.refreshButtonText}>↻</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Note Input */}
@@ -280,6 +373,47 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  locationIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationIconText: {
+    fontSize: 18,
+  },
+  locationContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  locationText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  refreshButtonText: {
+    fontSize: 18,
+    color: colors.primary,
   },
   inputContainer: {
     backgroundColor: colors.surface,

@@ -11,9 +11,12 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import StatsScreen from './src/screens/StatsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AddHabitScreen from './src/screens/AddHabitScreen';
+import EditHabitScreen from './src/screens/EditHabitScreen';
+import ManageHabitsScreen from './src/screens/ManageHabitsScreen';
 import CheckinScreen from './src/screens/CheckinScreen';
 import DayDetailScreen from './src/screens/DayDetailScreen';
 import ImageViewerScreen from './src/screens/ImageViewerScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -105,6 +108,9 @@ export default function App() {
       >
         <Stack.Screen name="Main" component={MainTabs} />
         <Stack.Screen name="AddHabit" component={AddHabitScreen} />
+        <Stack.Screen name="EditHabit" component={EditHabitScreen} />
+        <Stack.Screen name="ManageHabits" component={ManageHabitsScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="Checkin" component={CheckinScreen} />
         <Stack.Screen name="DayDetail" component={DayDetailScreen} />
         <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />
@@ -149,8 +155,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary + '18',
   },
   tabIcon: {
-    fontSize: 22,
-    marginBottom: 3,
+    fontSize: 24,
+    marginBottom: 6,
     opacity: 0.5,
   },
   tabIconActive: {

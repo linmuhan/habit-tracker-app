@@ -21,6 +21,7 @@ export const initDatabase = () => {
       checkinDate INTEGER NOT NULL,
       note TEXT,
       photos TEXT,
+      location TEXT,
       createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
       FOREIGN KEY (habitId) REFERENCES habits(id) ON DELETE CASCADE
     );
@@ -46,14 +47,45 @@ export const deleteHabit = (id: number) => {
   db.runSync('UPDATE habits SET isActive = 0 WHERE id = ?', [id]);
 };
 
-export const checkin = (data: { habitId: number; note?: string; photos?: string[] }) => {
+export const updateHabit = (id: number, habit: { name?: string; icon?: string; color?: string; frequency?: string; reminderTime?: string }) => {
+  const fields = [];
+  const values = [];
+  
+  if (habit.name !== undefined) {
+    fields.push('name = ?');
+    values.push(habit.name);
+  }
+  if (habit.icon !== undefined) {
+    fields.push('icon = ?');
+    values.push(habit.icon);
+  }
+  if (habit.color !== undefined) {
+    fields.push('color = ?');
+    values.push(habit.color);
+  }
+  if (habit.frequency !== undefined) {
+    fields.push('frequency = ?');
+    values.push(habit.frequency);
+  }
+  if (habit.reminderTime !== undefined) {
+    fields.push('reminderTime = ?');
+    values.push(habit.reminderTime);
+  }
+  
+  if (fields.length === 0) return;
+  
+  values.push(id);
+  db.runSync(`UPDATE habits SET ${fields.join(', ')} WHERE id = ?`, values);
+};
+
+export const checkin = (data: { habitId: number; note?: string; photos?: string[]; location?: string }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const timestamp = today.getTime();
-  
+
   const result = db.runSync(
-    'INSERT INTO checkins (habitId, checkinDate, note, photos) VALUES (?, ?, ?, ?)',
-    [data.habitId, timestamp, data.note || null, data.photos ? JSON.stringify(data.photos) : null]
+    'INSERT INTO checkins (habitId, checkinDate, note, photos, location) VALUES (?, ?, ?, ?, ?)',
+    [data.habitId, timestamp, data.note || null, data.photos ? JSON.stringify(data.photos) : null, data.location || null]
   );
   return result.lastInsertRowId;
 };

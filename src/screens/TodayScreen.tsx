@@ -57,8 +57,19 @@ export default function TodayScreen() {
   };
 
   const getGradientFromColor = (color: string): [string, string] => {
-    // Create a slightly lighter second color for the gradient
-    return [color, color + 'DD'];
+    // Map color to gradient pairs
+    const colorMap: Record<string, [string, string]> = {
+      '#6366F1': ['#6366F1', '#8B5CF6'], // Indigo to Violet
+      '#EC4899': ['#EC4899', '#F43F5E'], // Pink to Rose
+      '#10B981': ['#10B981', '#34D399'], // Emerald to Green
+      '#F59E0B': ['#F59E0B', '#FBBF24'], // Amber to Yellow
+      '#3B82F6': ['#3B82F6', '#06B6D4'], // Blue to Cyan
+      '#8B5CF6': ['#8B5CF6', '#A855F7'], // Violet to Purple
+      '#F43F5E': ['#F43F5E', '#FB7185'], // Rose to Red
+      '#14B8A6': ['#14B8A6', '#2DD4BF'], // Teal to Turquoise
+    };
+    
+    return colorMap[color] || [color, color + 'DD'];
   };
 
   const today = new Date();

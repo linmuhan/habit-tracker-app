@@ -7,21 +7,57 @@ import {
   TouchableOpacity,
   Alert,
   Share,
+  Image,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getHabits, getAllCheckins, clearAllData } from '../database';
 import { colors } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
+type RootStackParamList = {
+  EditProfile: undefined;
+  ManageHabits: undefined;
+};
+
+const AVATAR_STORAGE_KEY = '@habit_tracker_avatar';
+const NICKNAME_STORAGE_KEY = '@habit_tracker_nickname';
+const SIGNATURE_STORAGE_KEY = '@habit_tracker_signature';
+
 export default function ProfileScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [habits, setHabits] = useState<any[]>([]);
   const [checkins, setCheckins] = useState<any[]>([]);
+  const [nickname, setNickname] = useState('打卡达人');
+  const [signature, setSignature] = useState('坚持就是胜利');
+  const [avatar, setAvatar] = useState('👤');
+  const [customAvatarUri, setCustomAvatarUri] = useState<string | null>(null);
 
-  const loadData = () => {
+  const loadData = async () => {
     setHabits(getHabits());
     setCheckins(getAllCheckins());
+    
+    // Load profile data
+    try {
+      const savedNickname = await AsyncStorage.getItem(NICKNAME_STORAGE_KEY);
+      const savedSignature = await AsyncStorage.getItem(SIGNATURE_STORAGE_KEY);
+      const savedAvatar = await AsyncStorage.getItem(AVATAR_STORAGE_KEY);
+      
+      if (savedNickname) setNickname(savedNickname);
+      if (savedSignature) setSignature(savedSignature);
+      if (savedAvatar) {
+        if (savedAvatar.startsWith('http') || savedAvatar.startsWith('file')) {
+          setCustomAvatarUri(savedAvatar);
+          setAvatar('');
+        } else {
+          setAvatar(savedAvatar);
+          setCustomAvatarUri(null);
+        }
+      }
+    } catch (error) {
+      console.log('加载个人资料失败', error);
+    }
   };
 
   useFocusEffect(
@@ -34,7 +70,6 @@ export default function ProfileScreen() {
   const totalHabits = habits.length;
   
   // 计算连续打卡天数
-  const now = new Date();
   const uniqueDates = [...new Set(checkins.map(c => c.checkinDate))].sort((a, b) => b - a);
   let currentStreak = 0;
   const today = new Date();
@@ -83,7 +118,7 @@ export default function ProfileScreen() {
   };
 
   const menuItems = [
-    { icon: '📋', title: '管理习惯', subtitle: `${totalHabits} 个习惯`, onPress: () => {} },
+    { icon: '📋', title: '管理习惯', subtitle: `${totalHabits} 个习惯`, onPress: () => navigation.navigate('ManageHabits') },
     { icon: '📤', title: '分享成就', subtitle: '邀请好友一起打卡', onPress: handleShare },
     { icon: 'ℹ️', title: '关于应用', subtitle: '版本 1.0.0', onPress: () => {} },
     { icon: '🗑️', title: '清除数据', subtitle: '删除所有习惯和数据', onPress: handleClearData, danger: true },
@@ -97,7 +132,7 @@ export default function ProfileScreen() {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
-        <View style={styles.profileCard}>
+        <TouchableOpacity style={styles.profileCard} onPress={() => navigation.navigate('EditProfile')}>
           <LinearGradient
             colors={[colors.primary, colors.primaryDark]}
             style={styles.profileGradient}
@@ -105,10 +140,18 @@ export default function ProfileScreen() {
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.avatarContainer}>
-              <Text style={styles.avatar}>👤</Text>
+              {customAvatarUri ? (
+                <Image source={{ uri: customAvatarUri }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatar}>{avatar || '👤'}</Text>
+              )}
             </View>
-            <Text style={styles.username}>打卡达人</Text>
-            <Text style={styles.subtitle}>坚持就是胜利</Text>
+            <Text style={styles.username}>{nickname}</Text>
+            <Text style={styles.subtitle}>{signature}</Text>
+            
+            <View style={styles.editHint}>
+              <Text style={styles.editHintText}>点击编辑资料 ›</Text>
+            </View>
             
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -127,7 +170,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           </LinearGradient>
-        </View>
+        </TouchableOpacity>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
@@ -202,6 +245,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatar: {
     fontSize: 40,
@@ -215,7 +264,14 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 24,
+    marginBottom: 8,
+  },
+  editHint: {
+    marginBottom: 20,
+  },
+  editHintText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
   },
   statsRow: {
     flexDirection: 'row',
