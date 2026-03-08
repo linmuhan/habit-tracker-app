@@ -22,10 +22,24 @@ jobs:
     - name: Install dependencies
       run: npm install
       
-    - name: Setup EAS
-      run: npm install -g eas-cli
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
       
-    - name: Build Android APK
-      run: eas build --platform android --profile preview --non-interactive --no-wait
-      env:
-        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    - name: Create Android project
+      run: npx expo prebuild --platform android
+      
+    - name: Build APK
+      working-directory: ./android
+      run: ./gradlew assembleRelease
+      
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: android/app/build/outputs/apk/release/*.apk
