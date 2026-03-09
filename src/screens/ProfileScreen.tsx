@@ -5,10 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Share,
   Image,
 } from 'react-native';
+import CustomDialog from '../components/CustomDialog';
+import Toast from '../components/Toast';
 import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 type RootStackParamList = {
   EditProfile: undefined;
   ManageHabits: undefined;
+  ShareCard: undefined;
 };
 
 const AVATAR_STORAGE_KEY = '@habit_tracker_avatar';
@@ -33,6 +35,32 @@ export default function ProfileScreen() {
   const [signature, setSignature] = useState('坚持就是胜利');
   const [avatar, setAvatar] = useState('👤');
   const [customAvatarUri, setCustomAvatarUri] = useState<string | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    type: 'default' as 'default' | 'danger',
+    onConfirm: () => {},
+  });
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning' | 'info'>('info');
+
+  const showDialog = (title: string, message: string, onConfirm: () => void, type: 'default' | 'danger' = 'default') => {
+    setDialogConfig({
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+    setDialogVisible(true);
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   const loadData = async () => {
     setHabits(getHabits());
@@ -99,33 +127,43 @@ export default function ProfileScreen() {
   };
 
   const handleClearData = () => {
-    Alert.alert(
+    showDialog(
       '确认清除',
       '这将清除所有习惯和数据，此操作不可恢复，确定吗？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确定',
-          style: 'destructive',
-          onPress: () => {
-            clearAllData();
-            loadData();
-            Alert.alert('已清除', '所有数据已清除');
-          },
-        },
-      ]
+      () => {
+        clearAllData();
+        loadData();
+        setDialogVisible(false);
+        showToast('所有数据已清除', 'success');
+      },
+      'danger'
     );
   };
 
   const menuItems = [
     { icon: '📋', title: '管理习惯', subtitle: `${totalHabits} 个习惯`, onPress: () => navigation.navigate('ManageHabits') },
-    { icon: '📤', title: '分享成就', subtitle: '邀请好友一起打卡', onPress: handleShare },
+    { icon: '🎨', title: '生成分享卡片', subtitle: '生成精美海报分享', onPress: () => navigation.navigate('ShareCard') },
+    { icon: '📤', title: '文字分享', subtitle: '邀请好友一起打卡', onPress: handleShare },
     { icon: 'ℹ️', title: '关于应用', subtitle: '版本 1.0.0', onPress: () => {} },
     { icon: '🗑️', title: '清除数据', subtitle: '删除所有习惯和数据', onPress: handleClearData, danger: true },
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        type={dialogConfig.type}
+      />
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastVisible(false)}
+      />
       <View style={styles.header}>
         <Text style={styles.title}>我的</Text>
       </View>

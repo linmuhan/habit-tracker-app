@@ -30,32 +30,42 @@ export default function CheckinScreen() {
   const [location, setLocation] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [useLocation, setUseLocation] = useState(false);
+  const [locationError, setLocationError] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogConfig, setDialogConfig] = useState({
     title: '',
     message: '',
+    type: 'default' as 'default' | 'danger',
     onConfirm: () => {},
   });
 
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
-
-  const requestLocationPermission = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status === 'granted') {
+  const toggleLocation = async () => {
+    if (!useLocation) {
+      // 开启定位
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        showDialog('权限被拒绝', '无法获取位置权限，打卡将不记录位置');
+        return;
+      }
+      setUseLocation(true);
       getCurrentLocation();
+    } else {
+      // 关闭定位
+      setUseLocation(false);
+      setLocation(null);
+      setLocationError(false);
     }
   };
 
   const getCurrentLocation = async () => {
     setIsGettingLocation(true);
+    setLocationError(false);
     try {
       const { coords } = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
       
-      // Try to get address from coordinates
       try {
         const [address] = await Location.reverseGeocodeAsync({
           latitude: coords.latitude,
@@ -77,6 +87,8 @@ export default function CheckinScreen() {
       }
     } catch (error) {
       console.log('获取位置失败', error);
+      setLocationError(true);
+      setLocation(null);
     } finally {
       setIsGettingLocation(false);
     }
@@ -125,10 +137,11 @@ export default function CheckinScreen() {
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
-  const showDialog = (title: string, message: string, onConfirm?: () => void) => {
+  const showDialog = (title: string, message: string, onConfirm?: () => void, type: 'default' | 'danger' = 'default') => {
     setDialogConfig({
       title,
       message,
+      type,
       onConfirm: onConfirm || (() => setDialogVisible(false)),
     });
     setDialogVisible(true);
@@ -166,6 +179,7 @@ export default function CheckinScreen() {
         onConfirm={dialogConfig.onConfirm}
         onCancel={() => setDialogVisible(false)}
         showCancel={false}
+        type={dialogConfig.type}
       />
 
       <KeyboardAvoidingView
@@ -204,20 +218,35 @@ export default function CheckinScreen() {
 
           {/* Location */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📍 打卡位置</Text>
-            <View style={styles.locationContainer}>
-              <View style={styles.locationIcon}>
-                <Text style={styles.locationIconText}>📍</Text>
-              </View>
-              <View style={styles.locationContent}>
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {isGettingLocation ? '正在获取位置...' : (location || '未能获取位置')}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.refreshButton} onPress={getCurrentLocation}>
-                <Text style={styles.refreshButtonText}>↻</Text>
+            <View style={styles.locationHeader}>
+              <Text style={styles.sectionTitle}>📍 打卡位置</Text>
+              <TouchableOpacity
+                style={[styles.toggleButton, useLocation && styles.toggleButtonActive]}
+                onPress={toggleLocation}
+              >
+                <View style={[styles.toggleCircle, useLocation && styles.toggleCircleActive]} />
               </TouchableOpacity>
             </View>
+            {useLocation && (
+              <View style={styles.locationContainer}>
+                <View style={styles.locationIcon}>
+                  <Text style={styles.locationIconText}>📍</Text>
+                </View>
+                <View style={styles.locationContent}>
+                  <Text style={[styles.locationText, locationError && styles.locationErrorText]} numberOfLines={1}>
+                    {isGettingLocation ? '正在获取位置...' : 
+                     locationError ? '获取位置失败，可点击重试' : 
+                     location || '未能获取位置'}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.refreshButton} onPress={getCurrentLocation}>
+                  <Text style={styles.refreshButtonText}>↻</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {!useLocation && (
+              <Text style={styles.locationHint}>开启后将记录打卡位置</Text>
+            )}
           </View>
 
           {/* Note Input */}
@@ -373,6 +402,40 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  toggleButton: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.border,
+    padding: 2,
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    transform: [{ translateX: 0 }],
+  },
+  toggleCircleActive: {
+    transform: [{ translateX: 22 }],
+  },
+  locationHint: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  locationErrorText: {
+    color: colors.error,
   },
   locationContainer: {
     flexDirection: 'row',

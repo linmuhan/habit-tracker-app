@@ -28,6 +28,23 @@ export const initDatabase = () => {
 
     CREATE INDEX IF NOT EXISTS idx_checkins_date ON checkins(checkinDate);
     CREATE INDEX IF NOT EXISTS idx_checkins_habit ON checkins(habitId);
+
+    CREATE TABLE IF NOT EXISTS challenges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habitId INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      targetDays INTEGER NOT NULL,
+      startDate INTEGER NOT NULL,
+      endDate INTEGER,
+      status TEXT DEFAULT 'active',
+      completedDays INTEGER DEFAULT 0,
+      createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+      FOREIGN KEY (habitId) REFERENCES habits(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_challenges_habit ON challenges(habitId);
+    CREATE INDEX IF NOT EXISTS idx_challenges_status ON challenges(status);
   `);
 };
 
@@ -169,4 +186,58 @@ export const deleteCheckin = (id: number) => {
 export const clearAllData = () => {
   db.runSync('DELETE FROM checkins');
   db.runSync('DELETE FROM habits');
+  db.runSync('DELETE FROM challenges');
+};
+
+// Challenge Functions
+export const createChallenge = (challenge: { habitId: number; title: string; description?: string; targetDays: number; startDate: number }) => {
+  const result = db.runSync(
+    'INSERT INTO challenges (habitId, title, description, targetDays, startDate) VALUES (?, ?, ?, ?, ?)',
+    [challenge.habitId, challenge.title, challenge.description || null, challenge.targetDays, challenge.startDate]
+  );
+  return result.lastInsertRowId;
+};
+
+export const getChallenges = () => {
+  return db.getAllSync(`
+    SELECT c.*, h.name as habitName, h.icon as habitIcon, h.color as habitColor 
+    FROM challenges c 
+    JOIN habits h ON c.habitId = h.id 
+    WHERE c.status = 'active' AND h.isActive = 1
+    ORDER BY c.createdAt DESC
+  `) as any[];
+};
+
+export const getAllChallenges = () => {
+  return db.getAllSync(`
+    SELECT c.*, h.name as habitName, h.icon as habitIcon, h.color as habitColor 
+    FROM challenges c 
+    JOIN habits h ON c.habitId = h.id 
+    WHERE h.isActive = 1
+    ORDER BY c.createdAt DESC
+  `) as any[];
+};
+
+export const updateChallengeProgress = (challengeId: number, completedDays: number) => {
+  const challenge = db.getFirstSync('SELECT * FROM challenges WHERE id = ?', [challengeId]) as any;
+  if (!challenge) return;
+
+  const targetDays = challenge.targetDays;
+  const status = completedDays >= targetDays ? 'completed' : 'active';
+
+  db.runSync(
+    'UPDATE challenges SET completedDays = ?, status = ?, endDate = ? WHERE id = ?',
+    [completedDays, status, status === 'completed' ? Date.now() : null, challengeId]
+  );
+};
+
+export const completeChallenge = (challengeId: number) => {
+  db.runSync(
+    'UPDATE challenges SET status = ?, endDate = ? WHERE id = ?',
+    ['completed', Date.now(), challengeId]
+  );
+};
+
+export const deleteChallenge = (id: number) => {
+  db.runSync('UPDATE challenges SET status = ? WHERE id = ?', ['deleted', id]);
 };

@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
   Image,
 } from 'react-native';
+import CustomDialog from '../components/CustomDialog';
+import Toast from '../components/Toast';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,6 +30,32 @@ export default function EditProfileScreen() {
   const [avatar, setAvatar] = useState('👤');
   const [customAvatarUri, setCustomAvatarUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    type: 'default' as 'default' | 'danger',
+    onConfirm: () => {},
+  });
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning' | 'info'>('info');
+
+  const showDialog = (title: string, message: string, onConfirm: () => void, type: 'default' | 'danger' = 'default') => {
+    setDialogConfig({
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+    setDialogVisible(true);
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   useEffect(() => {
     loadProfile();
@@ -57,7 +84,7 @@ export default function EditProfileScreen() {
   const pickAvatarImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('权限需要', '需要访问相册权限来选择头像');
+      showToast('需要访问相册权限来选择头像', 'warning');
       return;
     }
 
@@ -76,7 +103,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!nickname.trim()) {
-      Alert.alert('请输入昵称');
+      showToast('请输入昵称', 'warning');
       return;
     }
 
@@ -86,15 +113,14 @@ export default function EditProfileScreen() {
     try {
       await AsyncStorage.setItem(NICKNAME_STORAGE_KEY, nickname.trim());
       await AsyncStorage.setItem(SIGNATURE_STORAGE_KEY, signature.trim());
-      
+
       const avatarToSave = customAvatarUri || avatar;
       await AsyncStorage.setItem(AVATAR_STORAGE_KEY, avatarToSave);
 
-      Alert.alert('保存成功！', '个人资料已更新 🎉', [
-        { text: '好的', onPress: () => navigation.goBack() },
-      ]);
+      showToast('个人资料已更新 🎉', 'success');
+      setTimeout(() => navigation.goBack(), 1500);
     } catch (error) {
-      Alert.alert('保存失败', '请重试');
+      showToast('保存失败，请重试', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -102,6 +128,20 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        type={dialogConfig.type}
+      />
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastVisible(false)}
+      />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

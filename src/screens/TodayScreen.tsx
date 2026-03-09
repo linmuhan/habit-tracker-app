@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 type RootStackParamList = {
   AddHabit: undefined;
   Checkin: { habit: any };
+  Challenge: undefined;
 };
 
 export default function TodayScreen() {
@@ -87,6 +88,9 @@ export default function TodayScreen() {
               : `今日已打卡 ${habits.filter(h => checkedIn[h.id]).length}/${habits.length}`}
           </Text>
         </View>
+        <TouchableOpacity style={styles.challengeButton} onPress={() => navigation.navigate('Challenge')}>
+          <Text style={styles.challengeButtonText}>🎯 挑战</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -192,9 +196,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
+  },
+  challengeButton: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  challengeButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   dateText: {
     fontSize: 14,

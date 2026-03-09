@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   RefreshControl,
 } from 'react-native';
+import CustomDialog from '../components/CustomDialog';
 import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getHabits, deleteHabit, getStreak, getCheckinsByHabit } from '../database';
@@ -24,6 +24,13 @@ export default function HabitsScreen() {
   const [streaks, setStreaks] = useState<Record<number, number>>({});
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    type: 'default' as 'default' | 'danger',
+    onConfirm: () => {},
+  });
 
   const loadData = async () => {
     const habitsData = getHabits();
@@ -51,21 +58,26 @@ export default function HabitsScreen() {
     setRefreshing(false);
   };
 
+  const showDialog = (title: string, message: string, onConfirm: () => void, type: 'default' | 'danger' = 'default') => {
+    setDialogConfig({
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+    setDialogVisible(true);
+  };
+
   const handleDelete = (habit: any) => {
-    Alert.alert(
+    showDialog(
       '删除习惯',
-      `确定要删除 "${habit.name}" 吗？\n所有相关记录也会被删除。`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: () => {
-            deleteHabit(habit.id);
-            loadData();
-          },
-        },
-      ]
+      `确定要删除 "${habit.name}" 吗？所有相关打卡记录也会被删除。`,
+      () => {
+        deleteHabit(habit.id);
+        loadData();
+        setDialogVisible(false);
+      },
+      'danger'
     );
   };
 
@@ -75,6 +87,14 @@ export default function HabitsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        type={dialogConfig.type}
+      />
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>我的习惯</Text>

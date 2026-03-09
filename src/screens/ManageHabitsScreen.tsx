@@ -5,8 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
+import CustomDialog from '../components/CustomDialog';
 import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getHabits, deleteHabit } from '../database';
@@ -20,9 +20,26 @@ type RootStackParamList = {
 export default function ManageHabitsScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [habits, setHabits] = useState<any[]>([]);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    type: 'default' as 'default' | 'danger',
+    onConfirm: () => {},
+  });
 
   const loadData = () => {
     setHabits(getHabits());
+  };
+
+  const showDialog = (title: string, message: string, onConfirm: () => void, type: 'default' | 'danger' = 'default') => {
+    setDialogConfig({
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+    setDialogVisible(true);
   };
 
   useFocusEffect(
@@ -32,20 +49,15 @@ export default function ManageHabitsScreen() {
   );
 
   const handleDelete = (habit: any) => {
-    Alert.alert(
+    showDialog(
       '确认删除',
       `确定要删除习惯「${habit.name}」吗？相关的打卡记录也会被删除。`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: () => {
-            deleteHabit(habit.id);
-            loadData();
-          },
-        },
-      ]
+      () => {
+        deleteHabit(habit.id);
+        loadData();
+        setDialogVisible(false);
+      },
+      'danger'
     );
   };
 
@@ -55,6 +67,14 @@ export default function ManageHabitsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        type={dialogConfig.type}
+      />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

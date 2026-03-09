@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
 } from 'react-native';
+import CustomDialog from '../components/CustomDialog';
+import Toast from '../components/Toast';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { updateHabit } from '../database';
@@ -33,10 +34,36 @@ export default function EditHabitScreen() {
   );
   const [selectedFrequency, setSelectedFrequency] = useState(habit.frequency);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    type: 'default' as 'default' | 'danger',
+    onConfirm: () => {},
+  });
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning' | 'info'>('info');
+
+  const showDialog = (title: string, message: string, onConfirm: () => void, type: 'default' | 'danger' = 'default') => {
+    setDialogConfig({
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+    setDialogVisible(true);
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert('请输入习惯名称');
+      showToast('请输入习惯名称', 'warning');
       return;
     }
 
@@ -51,11 +78,10 @@ export default function EditHabitScreen() {
         frequency: selectedFrequency,
       });
 
-      Alert.alert('修改成功！', '习惯已更新 🎉', [
-        { text: '好的', onPress: () => navigation.goBack() },
-      ]);
+      showToast('习惯已更新 🎉', 'success');
+      setTimeout(() => navigation.goBack(), 1500);
     } catch (error) {
-      Alert.alert('修改失败', '请重试');
+      showToast('修改失败，请重试', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -63,6 +89,20 @@ export default function EditHabitScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        type={dialogConfig.type}
+      />
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastVisible(false)}
+      />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

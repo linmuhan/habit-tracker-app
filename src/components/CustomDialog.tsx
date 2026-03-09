@@ -21,7 +21,7 @@ interface CustomDialogProps {
   onConfirm?: () => void;
   onCancel?: () => void;
   showCancel?: boolean;
-  type?: 'default' | 'danger';
+  type?: 'default' | 'danger' | 'success' | 'warning';
 }
 
 export default function CustomDialog({
@@ -45,8 +45,15 @@ export default function CustomDialog({
       <View style={styles.overlay}>
         <View style={styles.container}>
           {/* Icon */}
-          <View style={[styles.iconContainer, type === 'danger' && styles.iconContainerDanger]}>
-            <Text style={styles.icon}>{type === 'danger' ? '⚠️' : '💡'}</Text>
+          <View style={[
+            styles.iconContainer,
+            type === 'danger' && styles.iconContainerDanger,
+            type === 'success' && styles.iconContainerSuccess,
+            type === 'warning' && styles.iconContainerWarning,
+          ]}>
+            <Text style={styles.icon}>
+              {type === 'danger' ? '⚠️' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '💡'}
+            </Text>
           </View>
           
           {/* Content */}
@@ -70,7 +77,12 @@ export default function CustomDialog({
               onPress={onConfirm}
             >
               <LinearGradient
-                colors={type === 'danger' ? ['#FF6B6B', '#EE5A5A'] : [colors.primary, colors.primaryDark]}
+                colors={
+                  type === 'danger' ? ['#FF6B6B', '#EE5A5A'] :
+                  type === 'success' ? ['#10B981', '#059669'] :
+                  type === 'warning' ? ['#F59E0B', '#D97706'] :
+                  [colors.primary, colors.primaryDark]
+                }
                 style={styles.confirmGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -119,6 +131,12 @@ const styles = StyleSheet.create({
   },
   iconContainerDanger: {
     backgroundColor: '#FF6B6B15',
+  },
+  iconContainerSuccess: {
+    backgroundColor: '#10B98115',
+  },
+  iconContainerWarning: {
+    backgroundColor: '#F59E0B15',
   },
   icon: {
     fontSize: 32,

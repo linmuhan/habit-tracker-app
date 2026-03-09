@@ -7,8 +7,8 @@ import {
   Image,
   TouchableOpacity,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import CustomDialog from '../components/CustomDialog';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCheckinsByDate, deleteCheckin } from '../database';
@@ -21,6 +21,13 @@ export default function DayDetailScreen() {
 
   const [checkins, setCheckins] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    type: 'default' as 'default' | 'danger',
+    onConfirm: () => {},
+  });
 
   const loadData = () => {
     const dateObj = new Date(date);
@@ -40,21 +47,26 @@ export default function DayDetailScreen() {
     setRefreshing(false);
   };
 
+  const showDialog = (title: string, message: string, onConfirm: () => void, type: 'default' | 'danger' = 'default') => {
+    setDialogConfig({
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+    setDialogVisible(true);
+  };
+
   const handleDelete = (checkin: any) => {
-    Alert.alert(
+    showDialog(
       '删除记录',
-      '确定要删除这条打卡记录吗？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: () => {
-            deleteCheckin(checkin.id);
-            loadData();
-          },
-        },
-      ]
+      '确定要删除这条打卡记录吗？此操作不可恢复。',
+      () => {
+        deleteCheckin(checkin.id);
+        loadData();
+        setDialogVisible(false);
+      },
+      'danger'
     );
   };
 
@@ -65,6 +77,14 @@ export default function DayDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        type={dialogConfig.type}
+      />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
