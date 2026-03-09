@@ -9,7 +9,7 @@ export const initDatabase = () => {
       name TEXT NOT NULL,
       icon TEXT DEFAULT '📋',
       color TEXT DEFAULT '#4A90E2',
-      frequency TEXT DEFAULT 'daily',
+      frequency TEXT DEFAULT '{"type":"daily"}',
       reminderTime TEXT,
       createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
       isActive INTEGER DEFAULT 1
@@ -240,4 +240,127 @@ export const completeChallenge = (challengeId: number) => {
 
 export const deleteChallenge = (id: number) => {
   db.runSync('UPDATE challenges SET status = ? WHERE id = ?', ['deleted', id]);
+};
+
+// Backup/Restore Functions
+export const exportData = () => {
+  const habits = db.getAllSync('SELECT * FROM habits') as any[];
+  const checkins = db.getAllSync('SELECT * FROM checkins') as any[];
+  const challenges = db.getAllSync('SELECT * FROM challenges') as any[];
+
+  return {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    habits,
+    checkins,
+    challenges,
+  };
+};
+
+export const importData = (data: {
+  version: number;
+  habits: any[];
+  checkins: any[];
+  challenges: any[];
+}) => {
+  // Clear existing data
+  db.runSync('DELETE FROM checkins');
+  db.runSync('DELETE FROM habits');
+  db.runSync('DELETE FROM challenges');
+
+  // Import habits
+  for (const habit of data.habits) {
+    db.runSync(
+      'INSERT INTO habits (id, name, icon, color, frequency, reminderTime, createdAt, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [habit.id, habit.name, habit.icon, habit.color, habit.frequency, habit.reminderTime, habit.createdAt, habit.isActive]
+    );
+  }
+
+  // Import checkins
+  for (const checkin of data.checkins) {
+    db.runSync(
+      'INSERT INTO checkins (id, habitId, checkinDate, note, photos, location, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [checkin.id, checkin.habitId, checkin.checkinDate, checkin.note, checkin.photos, checkin.location, checkin.createdAt]
+    );
+  }
+
+  // Import challenges
+  for (const challenge of data.challenges) {
+    db.runSync(
+      'INSERT INTO challenges (id, habitId, title, description, targetDays, startDate, endDate, status, completedDays, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [challenge.id, challenge.habitId, challenge.title, challenge.description, challenge.targetDays, challenge.startDate, challenge.endDate, challenge.status, challenge.completedDays, challenge.createdAt]
+    );
+  }
+};
+
+// Frequency helper functions
+export type FrequencyType = 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'monthly';
+
+export interface FrequencyConfig {
+  type: FrequencyType;
+  days?: number[]; // For weekly: 0-6 (Sun-Sat), for monthly: 1-31
+  times?: number; // For "X times per week/month"
+}
+
+export const parseFrequency = (frequency: string): FrequencyConfig => {
+  try {
+    return JSON.parse(frequency);
+  } catch {
+    // Legacy support for old format
+    return { type: frequency as FrequencyType };
+  }
+};
+
+export const shouldCheckInToday = (habit: any, date: Date = new Date()): boolean => {
+  const freq = parseFrequency(habit.frequency);
+  const dayOfWeek = date.getDay(); // 0-6
+  const dayOfMonth = date.getDate(); // 1-31
+
+  switch (freq.type) {
+    case 'daily':
+      return true;
+    case 'weekdays':
+      return dayOfWeek >= 1 && dayOfWeek <= 5;
+    case 'weekends':
+      return dayOfWeek === 0 || dayOfWeek === 6;
+    case 'weekly':
+      if (freq.days && freq.days.length > 0) {
+        return freq.days.includes(dayOfWeek);
+      }
+      return true;
+    case 'monthly':
+      if (freq.days && freq.days.length > 0) {
+        return freq.days.includes(dayOfMonth);
+      }
+      return true;
+    default:
+      return true;
+  }
+};
+
+export const getFrequencyLabel = (frequency: string): string => {
+  const freq = parseFrequency(frequency);
+  const daysMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+  switch (freq.type) {
+    case 'daily':
+      return '每天';
+    case 'weekdays':
+      return '工作日';
+    case 'weekends':
+      return '周末';
+    case 'weekly':
+      if (freq.days && freq.days.length > 0) {
+        if (freq.days.length === 7) return '每天';
+        return freq.days.map(d => daysMap[d]).join('、');
+      }
+      return '每周';
+    case 'monthly':
+      if (freq.days && freq.days.length > 0) {
+        return `每月 ${freq.days.join('、')} 号`;
+      }
+      return '每月';
+    default:
+      return '每天';
+  }
 };

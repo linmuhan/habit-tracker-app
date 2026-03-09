@@ -6,19 +6,31 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { addHabit } from '../database';
+import { addHabit, FrequencyConfig } from '../database';
 import { colors, icons, gradients } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import Toast from '../components/Toast';
+import CustomDialog from '../components/CustomDialog';
 
-const frequencies = [
-  { key: 'daily', label: '每天', icon: '📅' },
-  { key: 'weekdays', label: '工作日', icon: '💼' },
-  { key: 'weekends', label: '周末', icon: '🏖️' },
-  { key: 'weekly', label: '每周', icon: '📆' },
+const frequencyOptions = [
+  { type: 'daily', label: '每天', icon: '📅', desc: '每天都打卡' },
+  { type: 'weekdays', label: '工作日', icon: '💼', desc: '周一到周五' },
+  { type: 'weekends', label: '周末', icon: '🏖️', desc: '周六和周日' },
+  { type: 'weekly', label: '每周', icon: '📆', desc: '选择每周哪几天' },
+  { type: 'monthly', label: '每月', icon: '🗓️', desc: '选择每月哪几天' },
+];
+
+const weekDays = [
+  { key: 1, label: '一', short: '周一' },
+  { key: 2, label: '二', short: '周二' },
+  { key: 3, label: '三', short: '周三' },
+  { key: 4, label: '四', short: '周四' },
+  { key: 5, label: '五', short: '周五' },
+  { key: 6, label: '六', short: '周六' },
+  { key: 0, label: '日', short: '周日' },
 ];
 
 export default function AddHabitScreen() {
@@ -26,12 +38,84 @@ export default function AddHabitScreen() {
   const [name, setName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState(icons[0]);
   const [selectedGradient, setSelectedGradient] = useState<[string, string]>(gradients[0] as [string, string]);
-  const [selectedFrequency, setSelectedFrequency] = useState('daily');
+  const [selectedFreqType, setSelectedFreqType] = useState('daily');
+  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [selectedMonthDays, setSelectedMonthDays] = useState<number[]>([1]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogConfig, setDialogConfig] = useState({
+    title: '',
+    message: '',
+    type: 'default' as 'default' | 'danger',
+    onConfirm: () => {},
+  });
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning' | 'info'>('info');
+
+  const showDialog = (title: string, message: string, onConfirm: () => void, type: 'default' | 'danger' = 'default') => {
+    setDialogConfig({
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+    setDialogVisible(true);
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
+  const toggleWeekDay = (day: number) => {
+    if (selectedWeekDays.includes(day)) {
+      setSelectedWeekDays(selectedWeekDays.filter(d => d !== day));
+    } else {
+      setSelectedWeekDays([...selectedWeekDays, day].sort());
+    }
+  };
+
+  const toggleMonthDay = (day: number) => {
+    if (selectedMonthDays.includes(day)) {
+      if (selectedMonthDays.length > 1) {
+        setSelectedMonthDays(selectedMonthDays.filter(d => d !== day));
+      }
+    } else {
+      if (selectedMonthDays.length < 5) {
+        setSelectedMonthDays([...selectedMonthDays, day].sort((a, b) => a - b));
+      } else {
+        showToast('最多选择5天', 'warning');
+      }
+    }
+  };
+
+  const getFrequencyLabel = () => {
+    const option = frequencyOptions.find(f => f.type === selectedFreqType);
+    if (selectedFreqType === 'weekly' && selectedWeekDays.length > 0) {
+      const days = selectedWeekDays.map(d => weekDays.find(w => w.key === d)?.label).join('、');
+      return `每周 ${days}`;
+    }
+    if (selectedFreqType === 'monthly' && selectedMonthDays.length > 0) {
+      return `每月 ${selectedMonthDays.join('、')} 号`;
+    }
+    return option?.label || '每天';
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Alert.alert('请输入习惯名称');
+      showToast('请输入习惯名称', 'warning');
+      return;
+    }
+
+    if (selectedFreqType === 'weekly' && selectedWeekDays.length === 0) {
+      showToast('请至少选择一天', 'warning');
+      return;
+    }
+
+    if (selectedFreqType === 'monthly' && selectedMonthDays.length === 0) {
+      showToast('请至少选择一天', 'warning');
       return;
     }
 
@@ -39,18 +123,27 @@ export default function AddHabitScreen() {
     setIsSubmitting(true);
 
     try {
+      const freqConfig: FrequencyConfig = {
+        type: selectedFreqType as any,
+      };
+      if (selectedFreqType === 'weekly') {
+        freqConfig.days = selectedWeekDays;
+      }
+      if (selectedFreqType === 'monthly') {
+        freqConfig.days = selectedMonthDays;
+      }
+
       addHabit({
         name: name.trim(),
         icon: selectedIcon,
         color: selectedGradient[0],
-        frequency: selectedFrequency,
+        frequency: JSON.stringify(freqConfig),
       });
 
-      Alert.alert('创建成功！', '开始你的打卡之旅吧 🎉', [
-        { text: '好的', onPress: () => navigation.goBack() },
-      ]);
+      showToast('习惯创建成功！🎉', 'success');
+      setTimeout(() => navigation.goBack(), 1500);
     } catch (error) {
-      Alert.alert('创建失败', '请重试');
+      showToast('创建失败，请重试', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -58,6 +151,21 @@ export default function AddHabitScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <CustomDialog
+        visible={dialogVisible}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={dialogConfig.onConfirm}
+        onCancel={() => setDialogVisible(false)}
+        type={dialogConfig.type}
+      />
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastVisible(false)}
+      />
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -83,7 +191,7 @@ export default function AddHabitScreen() {
                 {name || '习惯名称'}
               </Text>
               <Text style={styles.previewFrequency}>
-                {frequencies.find(f => f.key === selectedFrequency)?.label}
+                {getFrequencyLabel()}
               </Text>
             </LinearGradient>
           </View>
@@ -135,10 +243,10 @@ export default function AddHabitScreen() {
                   styles.colorButton,
                   selectedGradient === gradient && styles.colorButtonSelected,
                 ]}
-                onPress={() => setSelectedGradient(gradient)}
+                onPress={() => setSelectedGradient(gradient as [string, string])}
               >
                 <LinearGradient
-                  colors={gradient}
+                  colors={gradient as [string, string]}
                   style={styles.colorGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -157,23 +265,26 @@ export default function AddHabitScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>打卡频率</Text>
           <View style={styles.frequencyList}>
-            {frequencies.map((freq) => (
+            {frequencyOptions.map((freq) => (
               <TouchableOpacity
-                key={freq.key}
+                key={freq.type}
                 style={[
                   styles.frequencyButton,
-                  selectedFrequency === freq.key && styles.frequencyButtonSelected,
+                  selectedFreqType === freq.type && styles.frequencyButtonSelected,
                 ]}
-                onPress={() => setSelectedFrequency(freq.key)}
+                onPress={() => setSelectedFreqType(freq.type)}
               >
                 <Text style={styles.frequencyIcon}>{freq.icon}</Text>
-                <Text style={[
-                  styles.frequencyLabel,
-                  selectedFrequency === freq.key && styles.frequencyLabelSelected,
-                ]}>
-                  {freq.label}
-                </Text>
-                {selectedFrequency === freq.key && (
+                <View style={styles.frequencyContent}>
+                  <Text style={[
+                    styles.frequencyLabel,
+                    selectedFreqType === freq.type && styles.frequencyLabelSelected,
+                  ]}>
+                    {freq.label}
+                  </Text>
+                  <Text style={styles.frequencyDesc}>{freq.desc}</Text>
+                </View>
+                {selectedFreqType === freq.type && (
                   <View style={styles.frequencyCheck}>
                     <Text style={styles.frequencyCheckText}>✓</Text>
                   </View>
@@ -181,6 +292,68 @@ export default function AddHabitScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Weekly Day Selector */}
+          {selectedFreqType === 'weekly' && (
+            <View style={styles.daySelector}>
+              <Text style={styles.daySelectorTitle}>选择每周打卡日</Text>
+              <View style={styles.weekDayGrid}>
+                {weekDays.map((day) => (
+                  <TouchableOpacity
+                    key={day.key}
+                    style={[
+                      styles.weekDayButton,
+                      selectedWeekDays.includes(day.key) && styles.weekDayButtonSelected,
+                    ]}
+                    onPress={() => toggleWeekDay(day.key)}
+                  >
+                    <Text style={[
+                      styles.weekDayText,
+                      selectedWeekDays.includes(day.key) && styles.weekDayTextSelected,
+                    ]}>
+                      {day.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {selectedWeekDays.length > 0 && (
+                <Text style={styles.selectedDaysText}>
+                  已选择：{selectedWeekDays.map(d => weekDays.find(w => w.key === d)?.short).join('、')}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Monthly Day Selector */}
+          {selectedFreqType === 'monthly' && (
+            <View style={styles.daySelector}>
+              <Text style={styles.daySelectorTitle}>选择每月打卡日（最多5天）</Text>
+              <View style={styles.monthDayGrid}>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <TouchableOpacity
+                    key={day}
+                    style={[
+                      styles.monthDayButton,
+                      selectedMonthDays.includes(day) && styles.monthDayButtonSelected,
+                    ]}
+                    onPress={() => toggleMonthDay(day)}
+                  >
+                    <Text style={[
+                      styles.monthDayText,
+                      selectedMonthDays.includes(day) && styles.monthDayTextSelected,
+                    ]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {selectedMonthDays.length > 0 && (
+                <Text style={styles.selectedDaysText}>
+                  已选择：{selectedMonthDays.join('、')} 号
+                </Text>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Spacer */}
@@ -386,8 +559,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginRight: 12,
   },
-  frequencyLabel: {
+  frequencyContent: {
     flex: 1,
+  },
+  frequencyLabel: {
     fontSize: 15,
     color: colors.text,
     fontWeight: '500',
@@ -395,6 +570,11 @@ const styles = StyleSheet.create({
   frequencyLabelSelected: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  frequencyDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   frequencyCheck: {
     width: 24,
@@ -408,6 +588,75 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '700',
+  },
+  daySelector: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+  },
+  daySelectorTitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  weekDayGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  weekDayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  weekDayButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  weekDayText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  weekDayTextSelected: {
+    color: 'white',
+  },
+  monthDayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  monthDayButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  monthDayButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  monthDayText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  monthDayTextSelected: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  selectedDaysText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 12,
   },
   spacer: {
     height: 100,

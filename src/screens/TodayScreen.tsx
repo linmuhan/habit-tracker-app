@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getHabits, getStreak, isCheckedInToday, getAllCheckins } from '../database';
+import { getHabits, getStreak, isCheckedInToday, getAllCheckins, shouldCheckInToday, getFrequencyLabel } from '../database';
 import { colors } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -115,41 +115,44 @@ export default function TodayScreen() {
         ) : (
           <>
             <View style={styles.habitsGrid}>
-              {habits.map((habit) => {
-                const isChecked = checkedIn[habit.id];
-                const gradient = getGradientFromColor(habit.color || colors.primary);
+              {habits
+                .filter(habit => shouldCheckInToday(habit))
+                .map((habit) => {
+                  const isChecked = checkedIn[habit.id];
+                  const gradient = getGradientFromColor(habit.color || colors.primary);
+                  const freqLabel = getFrequencyLabel(habit.frequency);
 
-                return (
-                  <TouchableOpacity
-                    key={habit.id}
-                    style={styles.habitCard}
-                    onPress={() => navigation.navigate('Checkin', { habit })}
-                    activeOpacity={0.9}
-                  >
-                    <LinearGradient
-                      colors={isChecked ? ['#10B981', '#34D399'] : gradient}
-                      style={styles.habitGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                  return (
+                    <TouchableOpacity
+                      key={habit.id}
+                      style={styles.habitCard}
+                      onPress={() => navigation.navigate('Checkin', { habit })}
+                      activeOpacity={0.9}
                     >
-                      <View style={styles.habitContent}>
-                        <Text style={styles.habitIcon}>{habit.icon}</Text>
-                        <Text style={styles.habitName} numberOfLines={1}>{habit.name}</Text>
-                        <View style={styles.habitFooter}>
-                          <Text style={styles.streakText}>
-                            🔥 {streaks[habit.id] || 0} 天
-                          </Text>
-                          {isChecked && (
-                            <View style={styles.checkBadge}>
-                              <Text style={styles.checkBadgeText}>✓</Text>
-                            </View>
-                          )}
+                      <LinearGradient
+                        colors={isChecked ? ['#10B981', '#34D399'] : gradient}
+                        style={styles.habitGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <View style={styles.habitContent}>
+                          <Text style={styles.habitIcon}>{habit.icon}</Text>
+                          <Text style={styles.habitName} numberOfLines={1}>{habit.name}</Text>
+                          <View style={styles.habitFooter}>
+                            <Text style={styles.streakText}>
+                              {isChecked ? '✓ 已完成' : freqLabel}
+                            </Text>
+                            {isChecked && (
+                              <View style={styles.checkBadge}>
+                                <Text style={styles.checkBadgeText}>✓</Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                );
-              })}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  );
+                })}
             </View>
 
             <TouchableOpacity
