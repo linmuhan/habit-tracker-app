@@ -11,6 +11,8 @@ export const initDatabase = () => {
       color TEXT DEFAULT '#4A90E2',
       frequency TEXT DEFAULT '{"type":"daily"}',
       reminderTime TEXT,
+      reminderEnabled INTEGER DEFAULT 0,
+      category TEXT DEFAULT '其他',
       createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
       isActive INTEGER DEFAULT 1
     );
@@ -45,13 +47,34 @@ export const initDatabase = () => {
 
     CREATE INDEX IF NOT EXISTS idx_challenges_habit ON challenges(habitId);
     CREATE INDEX IF NOT EXISTS idx_challenges_status ON challenges(status);
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 };
 
-export const addHabit = (habit: { name: string; icon: string; color: string; frequency: string; reminderTime?: string }) => {
+export const addHabit = (habit: {
+  name: string;
+  icon: string;
+  color: string;
+  frequency: string;
+  category?: string;
+  reminderEnabled?: number;
+  reminderTime?: string | null;
+}) => {
   const result = db.runSync(
-    'INSERT INTO habits (name, icon, color, frequency, reminderTime) VALUES (?, ?, ?, ?, ?)',
-    [habit.name, habit.icon, habit.color, habit.frequency, habit.reminderTime || null]
+    'INSERT INTO habits (name, icon, color, frequency, category, reminderEnabled, reminderTime) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [
+      habit.name,
+      habit.icon,
+      habit.color,
+      habit.frequency,
+      habit.category || '其他',
+      habit.reminderEnabled || 0,
+      habit.reminderTime || null,
+    ]
   );
   return result.lastInsertRowId;
 };
@@ -64,7 +87,7 @@ export const deleteHabit = (id: number) => {
   db.runSync('UPDATE habits SET isActive = 0 WHERE id = ?', [id]);
 };
 
-export const updateHabit = (id: number, habit: { name?: string; icon?: string; color?: string; frequency?: string; reminderTime?: string }) => {
+export const updateHabit = (id: number, habit: { name?: string; icon?: string; color?: string; frequency?: string; category?: string; reminderEnabled?: number; reminderTime?: string | null }) => {
   const fields = [];
   const values = [];
   
@@ -83,6 +106,18 @@ export const updateHabit = (id: number, habit: { name?: string; icon?: string; c
   if (habit.frequency !== undefined) {
     fields.push('frequency = ?');
     values.push(habit.frequency);
+  }
+  if (habit.category !== undefined) {
+    fields.push('category = ?');
+    values.push(habit.category);
+  }
+  if (habit.reminderEnabled !== undefined) {
+    fields.push('reminderEnabled = ?');
+    values.push(habit.reminderEnabled);
+  }
+  if (habit.reminderTime !== undefined) {
+    fields.push('reminderTime = ?');
+    values.push(habit.reminderTime);
   }
   if (habit.reminderTime !== undefined) {
     fields.push('reminderTime = ?');
@@ -271,8 +306,8 @@ export const importData = (data: {
   // Import habits
   for (const habit of data.habits) {
     db.runSync(
-      'INSERT INTO habits (id, name, icon, color, frequency, reminderTime, createdAt, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [habit.id, habit.name, habit.icon, habit.color, habit.frequency, habit.reminderTime, habit.createdAt, habit.isActive]
+      'INSERT INTO habits (id, name, icon, color, frequency, reminderTime, reminderEnabled, category, createdAt, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [habit.id, habit.name, habit.icon, habit.color, habit.frequency, habit.reminderTime, habit.reminderEnabled, habit.category, habit.createdAt, habit.isActive]
     );
   }
 
@@ -363,4 +398,31 @@ export const getFrequencyLabel = (frequency: string): string => {
     default:
       return '每天';
   }
+};
+
+// Settings Functions
+export const getSetting = (key: string, defaultValue?: string): string | undefined => {
+  const result = db.getFirstSync('SELECT value FROM settings WHERE key = ?', [key]) as any;
+  return result ? result.value : defaultValue;
+};
+
+export const setSetting = (key: string, value: string) => {
+  db.runSync(
+    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+    [key, value]
+  );
+};
+
+// Category management
+export const getCategories = (): string[] => {
+  const habits = db.getAllSync('SELECT DISTINCT category FROM habits WHERE isActive = 1') as any[];
+  const categories = habits.map(h => h.category).filter(Boolean);
+  return ['全部', ...new Set(categories)];
+};
+
+export const getHabitsByCategory = (category: string) => {
+  if (category === '全部') {
+    return getHabits();
+  }
+  return db.getAllSync('SELECT * FROM habits WHERE isActive = 1 AND category = ? ORDER BY createdAt DESC', [category]) as any[];
 };

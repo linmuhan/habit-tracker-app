@@ -10,7 +10,7 @@ import {
 import CustomDialog from '../components/CustomDialog';
 import { useFocusEffect, useNavigation, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getHabits, deleteHabit, getStreak, getCheckinsByHabit } from '../database';
+import { getHabits, deleteHabit, getStreak, getCheckinsByHabit, getCategories, getHabitsByCategory, getFrequencyLabel } from '../database';
 import { colors, gradients } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -31,10 +31,16 @@ export default function HabitsScreen() {
     type: 'default' as 'default' | 'danger',
     onConfirm: () => {},
   });
+  const [categories, setCategories] = useState<string[]>(['全部']);
+  const [selectedCategory, setSelectedCategory] = useState('全部');
 
   const loadData = async () => {
-    const habitsData = getHabits();
+    const habitsData = selectedCategory === '全部' ? getHabits() : getHabitsByCategory(selectedCategory);
     setHabits(habitsData);
+
+    // Update categories list
+    const cats = getCategories();
+    setCategories(cats);
 
     const streaksData = {};
     const countsData = {};
@@ -115,10 +121,43 @@ export default function HabitsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Category Filter */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryFilter}
+          contentContainerStyle={styles.categoryFilterContent}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.categoryChip,
+                selectedCategory === category && styles.categoryChipSelected,
+              ]}
+              onPress={() => {
+                setSelectedCategory(category);
+                loadData();
+              }}
+            >
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  selectedCategory === category && styles.categoryChipTextSelected,
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {habits.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📝</Text>
-            <Text style={styles.emptyTitle}>还没有习惯</Text>
+            <Text style={styles.emptyTitle}>
+              {selectedCategory === '全部' ? '还没有习惯' : `${selectedCategory}分类下没有习惯`}
+            </Text>
             <Text style={styles.emptySubtitle}>点击右上角新建习惯</Text>
           </View>
         ) : (
@@ -143,9 +182,7 @@ export default function HabitsScreen() {
                       <View style={styles.habitInfo}>
                         <Text style={styles.habitName}>{habit.name}</Text>
                         <Text style={styles.habitFrequency}>
-                          {habit.frequency === 'daily' ? '每天' :
-                           habit.frequency === 'weekdays' ? '工作日' :
-                           habit.frequency === 'weekends' ? '周末' : '每周'}
+                          {getFrequencyLabel(habit.frequency)}
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -232,6 +269,34 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  categoryFilter: {
+    maxHeight: 50,
+    marginBottom: 8,
+  },
+  categoryFilterContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  categoryChipTextSelected: {
+    color: 'white',
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',

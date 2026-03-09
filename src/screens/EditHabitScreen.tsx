@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Switch,
 } from 'react-native';
 import CustomDialog from '../components/CustomDialog';
 import Toast from '../components/Toast';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { updateHabit, parseFrequency, FrequencyConfig, FrequencyType, getFrequencyLabel } from '../database';
+import { updateHabit, parseFrequency, FrequencyConfig, FrequencyType, getFrequencyLabel, getCategories } from '../database';
+import { updateHabitReminder } from '../notifications';
 import { colors, icons, gradients } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -49,6 +51,11 @@ export default function EditHabitScreen() {
   const [selectedFreqType, setSelectedFreqType] = useState<string>(existingFreq.type);
   const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>(existingFreq.days || [1, 2, 3, 4, 5]);
   const [selectedMonthDays, setSelectedMonthDays] = useState<number[]>(existingFreq.days || [1]);
+  const [selectedCategory, setSelectedCategory] = useState(habit.category || '其他');
+  const [reminderEnabled, setReminderEnabled] = useState(habit.reminderEnabled === 1);
+  const [reminderTime, setReminderTime] = useState(habit.reminderTime || '09:00');
+  const [categories, setCategories] = useState(['健康', '学习', '工作', '生活', '其他']);
+  const [showTimeInput, setShowTimeInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogConfig, setDialogConfig] = useState({
@@ -146,7 +153,13 @@ export default function EditHabitScreen() {
         icon: selectedIcon,
         color: selectedGradient[0],
         frequency: JSON.stringify(freqConfig),
+        category: selectedCategory,
+        reminderEnabled: reminderEnabled ? 1 : 0,
+        reminderTime: reminderEnabled ? reminderTime : null,
       });
+
+      // Update reminder
+      await updateHabitReminder(habit.id, reminderEnabled, reminderEnabled ? reminderTime : undefined);
 
       showToast('习惯已更新 🎉', 'success');
       setTimeout(() => navigation.goBack(), 1500);
@@ -358,6 +371,85 @@ export default function EditHabitScreen() {
                 <Text style={styles.selectedDaysText}>
                   已选择：{selectedMonthDays.join('、')} 号
                 </Text>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Category Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>习惯分组</Text>
+          <View style={styles.categoryList}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === category && styles.categoryButtonSelected,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text style={[
+                  styles.categoryButtonText,
+                  selectedCategory === category && styles.categoryButtonTextSelected,
+                ]}>
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Reminder Settings */}
+        <View style={styles.section}>
+          <View style={styles.reminderHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>打卡提醒</Text>
+              <Text style={styles.sectionDesc}>在设定时间提醒您打卡</Text>
+            </View>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={setReminderEnabled}
+              trackColor={{ false: '#D1D5DB', true: colors.primary }}
+              thumbColor="white"
+            />
+          </View>
+
+          {reminderEnabled && (
+            <View style={styles.reminderTimeContainer}>
+              {showTimeInput ? (
+                <View style={styles.timeEditRow}>
+                  <TextInput
+                    style={styles.timeInput}
+                    value={reminderTime}
+                    onChangeText={setReminderTime}
+                    placeholder="09:00"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numbers-and-punctuation"
+                    maxLength={5}
+                    autoFocus
+                  />
+                  <TouchableOpacity
+                    style={styles.timeSaveButton}
+                    onPress={() => {
+                      if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(reminderTime)) {
+                        showToast('请输入有效时间格式 (如: 09:00)', 'error');
+                        return;
+                      }
+                      setShowTimeInput(false);
+                    }}
+                  >
+                    <Text style={styles.timeSaveButtonText}>确定</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.timeDisplayButton}
+                  onPress={() => setShowTimeInput(true)}
+                >
+                  <Text style={styles.timeDisplayLabel}>提醒时间</Text>
+                  <Text style={styles.timeDisplayValue}>{reminderTime}</Text>
+                </TouchableOpacity>
               )}
             </View>
           )}
@@ -665,6 +757,91 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     marginTop: 12,
+  },
+  categoryList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryButtonText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  categoryButtonTextSelected: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  reminderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  reminderTimeContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  timeEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeInput: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 18,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  timeSaveButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginLeft: 12,
+  },
+  timeSaveButtonText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  timeDisplayButton: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timeDisplayLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  timeDisplayValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.primary,
   },
   spacer: {
     height: 100,

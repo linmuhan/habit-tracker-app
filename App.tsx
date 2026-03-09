@@ -20,6 +20,7 @@ import EditProfileScreen from './src/screens/EditProfileScreen';
 import ShareCardScreen from './src/screens/ShareCardScreen';
 import ChallengeScreen from './src/screens/ChallengeScreen';
 import BackupScreen from './src/screens/BackupScreen';
+import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -117,6 +118,7 @@ export default function App() {
 <Stack.Screen name="ShareCard" component={ShareCardScreen} />
 <Stack.Screen name="Challenge" component={ChallengeScreen} />
 <Stack.Screen name="Backup" component={BackupScreen} />
+<Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
         <Stack.Screen name="Checkin" component={CheckinScreen} />
         <Stack.Screen name="DayDetail" component={DayDetailScreen} />
         <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />

@@ -23,6 +23,7 @@ type RootStackParamList = {
   ShareCard: undefined;
   Backup: undefined;
   Challenge: undefined;
+  NotificationSettings: undefined;
 };
 
 const AVATAR_STORAGE_KEY = '@habit_tracker_avatar';
@@ -145,6 +146,7 @@ export default function ProfileScreen() {
   const menuItems = [
     { icon: '📋', title: '管理习惯', subtitle: `${totalHabits} 个习惯`, onPress: () => navigation.navigate('ManageHabits') },
     { icon: '🎯', title: '习惯挑战', subtitle: '参加挑战养成习惯', onPress: () => navigation.navigate('Challenge') },
+    { icon: '🔔', title: '提醒设置', subtitle: '设置打卡提醒', onPress: () => navigation.navigate('NotificationSettings') },
     { icon: '🎨', title: '生成分享卡片', subtitle: '生成精美海报分享', onPress: () => navigation.navigate('ShareCard') },
     { icon: '💾', title: '数据备份', subtitle: '导出/恢复数据', onPress: () => navigation.navigate('Backup') },
     { icon: '📤', title: '文字分享', subtitle: '邀请好友一起打卡', onPress: handleShare },
