@@ -15,10 +15,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { checkin } from '../database';
+import { checkin, getStreak } from '../database';
 import { colors } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import CustomDialog from '../components/CustomDialog';
+import LifeTree from '../components/LifeTree';
+import CelebrationOverlay from '../components/CelebrationOverlay';
 
 export default function CheckinScreen() {
   const navigation = useNavigation();
@@ -39,6 +41,14 @@ export default function CheckinScreen() {
     type: 'default' as 'default' | 'danger',
     onConfirm: () => {},
   });
+  const [streak, setStreak] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  useEffect(() => {
+    // 加载当前连续天数
+    const currentStreak = getStreak(habit.id);
+    setStreak(currentStreak);
+  }, [habit.id]);
 
   const toggleLocation = async () => {
     if (!useLocation) {
@@ -152,22 +162,34 @@ export default function CheckinScreen() {
     setIsSubmitting(true);
 
     try {
-      checkin({
+      const checkinId = checkin({
         habitId: habit.id,
         note: note.trim() || undefined,
         photos: photos.length > 0 ? photos : undefined,
         location: location || undefined,
       });
 
-      showDialog('打卡成功！', '继续保持好习惯 💪', () => {
-        setDialogVisible(false);
-        navigation.goBack();
-      });
+      if (checkinId === -1) {
+        showDialog('打卡失败', '数据库操作失败，请重试');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 打卡成功，更新连续天数并显示庆祝动画
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      setShowCelebration(true);
     } catch (error) {
-      showDialog('打卡失败', '请重试');
-    } finally {
+      console.error('Checkin error:', error);
+      showDialog('打卡失败', error instanceof Error ? error.message : '请重试');
       setIsSubmitting(false);
     }
+  };
+
+  const handleCelebrationComplete = () => {
+    setShowCelebration(false);
+    setIsSubmitting(false);
+    navigation.goBack();
   };
 
   return (
@@ -214,6 +236,14 @@ export default function CheckinScreen() {
                 })}
               </Text>
             </LinearGradient>
+          </View>
+
+          {/* Life Tree - 生命树成长 */}
+          <View style={styles.lifeTreeSection}>
+            <Text style={styles.sectionTitle}>🌱 习惯成长</Text>
+            <View style={styles.lifeTreeContainer}>
+              <LifeTree streak={streak} size={140} />
+            </View>
           </View>
 
           {/* Location */}
@@ -325,6 +355,14 @@ export default function CheckinScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Celebration Overlay - 仪式感庆祝动画 */}
+      <CelebrationOverlay
+        visible={showCelebration}
+        habitName={habit.name}
+        streak={streak + 1}
+        onComplete={handleCelebrationComplete}
+      />
     </SafeAreaView>
   );
 }
@@ -402,6 +440,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
+  },
+  lifeTreeSection: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  lifeTreeContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   locationHeader: {
     flexDirection: 'row',
